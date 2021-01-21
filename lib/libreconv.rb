@@ -34,9 +34,10 @@ module Libreconv
     # @raise [IOError]                If invalid source file/URL or soffice command not found.
     # @raise [URI::Error]             When URI parsing error.
     # @raise [Net::ProtocolError]     If source URL checking failed.
-    def initialize(source, target, soffice_command = nil, convert_to = nil)
+    def initialize(source, target, timeout, soffice_command = nil, convert_to = nil)
       @source = check_source_type(source)
       @target = target
+      @timeout = timeout
       @soffice_command = soffice_command || which('soffice') || which('soffice.bin')
       @convert_to = convert_to || 'pdf'
 
@@ -155,7 +156,7 @@ end
 
       Dir.mktmpdir do |target_path|
         command = build_command(tmp_pipe_path, target_path)
-        target_tmp_file = execute_command(command, target_path)
+        target_tmp_file = execute_command(command, target_path, @timeout)
 
         FileUtils.cp target_tmp_file, @target
       end
@@ -169,12 +170,12 @@ end
     # @param [String] target_path
     # @return [String]
     # @raise [ConversionFailedError]  When soffice command execution error.
-    def execute_command(command, target_path)
+    def execute_command(command, target_path, timeout)
       output, error, status =
         if RUBY_PLATFORM =~ /java/
           Open3.capture3(*command)
         else
-          capture3_with_timeout(*command, timeout: 30)
+          capture3_with_timeout(*command, timeout: timeout)
         end
 
       target_tmp_file = File.join(target_path, target_filename)
